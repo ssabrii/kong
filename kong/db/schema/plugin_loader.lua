@@ -38,14 +38,15 @@ local function convert_legacy_schema(name, old_schema)
   local new_schema = {
     name = name,
     fields = {
-      config = {
+      { config = {
         type = "record",
         required = true,
         fields = {}
-      }
+      }}
     },
     entity_checks = old_schema.entity_checks,
   }
+
   for old_fname, old_fdata in pairs(old_schema.fields) do
     local new_fdata = {}
     local new_field = { [old_fname] = new_fdata }
@@ -90,7 +91,7 @@ local function convert_legacy_schema(name, old_schema)
         if err then
           return nil, err
         end
-        rfields = rfields.fields.config.fields
+        rfields = rfields.fields[1].config.fields
 
         if v.flexible then
           new_fdata.keys = { type = "string" }
@@ -160,7 +161,7 @@ local function convert_legacy_schema(name, old_schema)
       new_fdata.type = "string"
     end
 
-    insert(new_schema.fields.config.fields, new_field)
+    insert(new_schema.fields[1].config.fields, new_field)
   end
 
   if old_schema.no_route then
@@ -184,18 +185,25 @@ function plugin_loader.load_subschema(parent_schema, plugin, errors)
   end
 
   local err
-  if schema.name then
-    local ok, err_t = MetaSchema.MetaSubSchema:validate(schema)
-    if not ok then
-      return schema, tostring(errors:schema_violation(err_t))
-    end
-
-  else
+  local is_legacy = false
+  if not schema.name then
+    is_legacy = true
     schema, err = convert_legacy_schema(plugin, schema)
-    if err then
-      return nil, "failed converting legacy schema for " ..
-                  plugin .. ": " .. err
+  end
+
+  if not err then
+    local err_t
+    ok, err_t = MetaSchema.MetaSubSchema:validate(schema)
+    if not ok then
+      err = tostring(errors:schema_violation(err_t))
     end
+  end
+
+  if err then
+    if is_legacy then
+      err = "failed converting legacy schema for " .. plugin .. ": " .. err
+    end
+    return nil, err
   end
 
   ok, err = Entity.new_subschema(parent_schema, plugin, schema)
