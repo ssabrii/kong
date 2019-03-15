@@ -66,8 +66,6 @@ jobs:
       - bin/busted -v -o gtest spec/01-unit
       env:
         - KONG_DATABASE=none
-    - stage: test
-      script: .ci/run_tests.sh
     - stage: deploy daily build
       install: skip
       script: make nightly-release
@@ -88,4 +86,7 @@ jobs:
     - script: make nightly-release
       env: PACKAGE_TYPE=apk RESTY_IMAGE_BASE=alpine RESTY_IMAGE_TAG=latest KONG_PACKAGE_NAME=${PWD##*/} KONG_VERSION=`date +%Y-%m-%d` REPOSITORY_NAME=${PWD##*/}-nightly REPOSITORY_OS_NAME=$TRAVIS_BRANCH
       if: type=cron
+   
+script:
+  - .ci/run_tests.sh
 
